@@ -1,41 +1,82 @@
 <?php
 //服务器代码
 //创建websocket 服务器
+include_once "const.php";
+include_once "config.php";
+include_once "Db.php";
+include_once "redis.php";
+include_once "CustomerService.php";
+include_once "StaffService.php";
+include_once "helper.php";
+
 $ws = new swoole_websocket_server("0.0.0.0",9502);
+
+
 // open
 $ws->on('open',function($ws,$request){
-    echo "新用户 $request->fd 加入。\n";
-    $GLOBALS['fd'][$request->fd]['id'] = $request->fd;//设置用户id
-    $GLOBALS['fd'][$request->fd]['name'] = '匿名用户';//设置用户名
+    $request = object_array($request);
 
-    $myfile = fopen("users.txt", "a+") or die("Unable to open file!");
-    $txt = "$request->fd" . "*";
-    fwrite($myfile, $txt);
-    fclose($myfile);
+    // TODO: Check if there are some message unreceived
+//    checkUnreceivedMsg();
 
+    //Customer's request
+    if(isset($request['get']['me']) && !empty($request['get']['me'])) {
+        $customerService = new CustomerService();
+        $user = $customerService->addOrUpdateCustomer($request);
+        $sid = $request['get']['sid'];
+        //Push customer's detail to assigned customer service
+        $redis = new RedisSet();
+        $sfd = $redis->getValue('sid'.$sid);
+        $ws->push($sfd,messageBody(CUSTOMER_JOIN,$user,null,0,$request['fd'],null));
+        $ws->push($request['fd'],messageBody(CUSTOMER_JOIN,'ok',$user['id'],0,$request['fd'],null));
+    }
+    //Staff's request
+    else if(isset($request['get']['token']) && !empty($request['get']['token'])) {
+        $staffService = new StaffService();
+        echo 'jinlaile';
+        $user = $staffService->updateStaffInfo($request,$request['get']['sid']);
+        $ws->push($request['fd'],messageBody(STAFF_JOIN,$user,null,0,$request['fd'],null));
+    }
 
-//    var_dump($GLOBALS['fd']);
-//    $ws->push($request->fd, "hello, welcome\n");
 });
 
 //message
 $ws->on('message',function($ws,$request){
-    $msg = $GLOBALS['fd'][$request->fd]['name'].":".$request->data."\n";
-    if(strstr($request->data,"#name#")){//用户设置昵称
-        $GLOBALS['fd'][$request->fd]['name'] = str_replace("#name#",'',$request->data);
+    if(!empty($request->data)) {
+        $msg = json_decode($request->data,true);
+        var_dump($msg);
+        if(!empty($msg) && isset($msg['op']) && !empty($msg['op'])) {
+            $redis = new RedisSet();
+            $staffService = new StaffService();
+            $customerService = new CustomerService();
+            if($msg['op'] == STAFF_CHAT_MSG) {
+                $ws->push($redis->getValue($msg['you']),json_encode($msg));
+            }
+            else if($msg['op'] == CUSTOMER_CHAT_MSG) {
+//                var_dump($redis->getValue('sid'.$msg['you']));
+                $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
+            }
+            else if($msg['op'] == STAFF_ONLINE || $msg['op'] == STAFF_BUSY || $msg['op'] == STAFF_OFFLINE) {
+//                var_dump($msg);
+                $staffService->updateCustomerStatus($msg['me'],ONLINE);
+                //Staff's status need to push to every customer assigned to him
+                //TODO: this pushing job needs to be done as an async job (using Coroutine in Swoole)
+                $usrList = $customerService->getUserList(['staff_id'=>$msg['me']],'uuid');
+                if(!empty($usrList)) {
+                    foreach ($usrList as $k=>$v) {
+                        $customerFds[] = $redis->getValue($v->uuid);
+                    }
+                    foreach ($customerFds as $k=>$v) {
+                        $ws->push($v,json_encode($msg));
+                    }
+                }
+            }
 
-    }else{//进行用户信息发送
-        //发送每一个客户端
-//        var_dump($GLOBALS['fd']);
 
-        $myfile = fopen("users.txt", "r") or die("Unable to open file!");
 
-        $users = explode('*',fread($myfile,filesize("users.txt")));
-
-        foreach($users as $i){
-            $ws->push(intval($i),$msg);
         }
     }
+
 });
 //close
 $ws->on('close',function($ws,$request){
