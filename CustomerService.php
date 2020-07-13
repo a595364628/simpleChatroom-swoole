@@ -13,6 +13,7 @@ class CustomerService
         return $data;
     }
 
+
     public function getUser($where,$column) {
         $user = $this->Db->where($where)->fields($column)->find();
         return $user;
@@ -29,12 +30,17 @@ class CustomerService
         */
         $redis = new RedisSet();
         $redis->setValue($data['get']['me'],$data['fd'],86400);
+
         $redis->setValue($data['get']['me'] . 'status', ONLINE,86400);
+
+//        $redis->getValue($data['get']['me']);
 
         $cid = $this->addCustomerInfo($data);
         $this->addDigitInfo($data,$cid);
         $data['id'] = $cid;
+
         $redis->setValue('fd'.$data['fd'],'cid'.$cid,86400);
+
 
         return $data;
     }

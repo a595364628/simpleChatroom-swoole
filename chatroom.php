@@ -1,4 +1,5 @@
 <?php
+
 //Server end code
 include_once "const.php";
 include_once "config.php";
@@ -23,7 +24,6 @@ $ws->on('open',function($ws,$request){
     if(isset($request['get']['me']) && !empty($request['get']['me'])) {
         $customerService = new CustomerService();
         $user = $customerService->addOrUpdateCustomer($request);
-        //TODO Didn't gather customer's device info and ip info yet
         $sid = $request['get']['sid'];
         //Push customer's detail to assigned customer service
         $redis = new RedisSet();
@@ -57,6 +57,7 @@ $ws->on('open',function($ws,$request){
 $ws->on('message',function($ws,$request){
     if(!empty($request->data)) {
         $msg = json_decode($request->data,true);
+
         if(!empty($msg) && isset($msg['op']) && !empty($msg['op'])) {
 //            var_dump($msg);
             $redis = new RedisSet();
@@ -127,6 +128,7 @@ $ws->on('message',function($ws,$request){
                     $ws->push($redis->getValue($msg['me']),messageBody(HEART_BEAT_PONG,'PONG',null,null,null));
                 }
             }
+
         }
     }
 

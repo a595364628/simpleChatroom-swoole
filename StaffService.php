@@ -22,6 +22,7 @@ class StaffService
         */
         $redis = new RedisSet();
         $redis->setValue('sid' . $sid,$data['fd']);
+
         $redis->setValue('fd'.$data['fd'],'sid'.$sid);
         $cid = $this->addStaffInfo($data);
         $this->addDigitInfo($data,$cid);
