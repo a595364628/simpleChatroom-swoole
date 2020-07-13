@@ -43,7 +43,7 @@
         <input id="text" type="text"><input value="发送数据" type="submit" onclick="send_message()">
     </div>
 
-    <div id="msg"></div>
+    <div id="msg">asfasfsdfasf</div>
 </div>
 <!--设置昵称-->
 <div>
@@ -54,7 +54,7 @@
 <script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
 <script type="text/javascript">
     var msg = document.getElementById("msg");
-    var wsServer = 'ws://10.101.182.200:9502';
+    var wsServer = 'ws://10.101.182.200:9502?token=lkjfkj';
     var websocket = new WebSocket(wsServer);
     websocket.onopen = function(evt){
         msg.innerHTML = websocket.readyState;
@@ -65,6 +65,8 @@
          closed 3
 
         */
+
+        websocket.send(6);
     }
     websocket.onmessage = function(evt){
         msg.innerHTML += evt.data+'<br />';
