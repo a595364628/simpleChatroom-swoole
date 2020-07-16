@@ -19,6 +19,11 @@ class CustomerService
         return $user;
     }
 
+    public function getUser2($where,$column) {
+        $user = $this->Db->where($where)->column($column);
+        return $user;
+    }
+
     public function addOrUpdateCustomer($data) {
 
         //set the customer online
@@ -57,18 +62,20 @@ class CustomerService
             $add['uuid'] = $data['get']['me'];
             $add['ip'] = $data['server']['remote_addr'];
             $add['location'] = 1;
-
+            $add['status'] = ONLINE;
             $id = $this->Db->add($add);
         } else {
             $update['visit_time'] = $exist['visit_time'] + 1;
+            $update['status'] = ONLINE;
             $this->Db->where(['uuid'=>$data['get']['me']])->update($update);
             $id = $exist['cid'];
         }
         return $id;
     }
 
-    public function updateCustomer($data) {
-
+    public function updateCustomer($where,$data) {
+        $this->Db->where($where)->update($data);
+        return true;
     }
 
     /*
@@ -95,6 +102,7 @@ class CustomerService
     private function addCustomerDigit($data,$id) {
         return true;
     }
+
 
 
 

@@ -96,8 +96,15 @@ $ws->on('message',function($ws,$request){
             }
             else if($msg['op'] == CUSTOMER_CHAT_MSG) {
 //                var_dump($redis->getValue('sid'.$msg['you']));
-                $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
-                $msgService->addMsg($msg,CUSTOMER_MSG_TYPE);
+                //Check whether the User has been banned
+                $isBaned = $customerService->getUser(['uuid'=>$msg['me']],'is_baned');
+                if($isBaned->is_baned == 1) {
+                    $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
+                    $msgService->addMsg($msg,CUSTOMER_MSG_TYPE);
+                }
+                else {
+                    $ws->push($request->fd,messageBody(IS_BANED,null,null,null,null));
+                }
             }
             else if($msg['op'] == WRITING_MSG || $msg['op'] == WRITING_MSG_END) {
                 $ws->push($redis->getValue($msg['you']),json_encode($msg));
@@ -147,14 +154,13 @@ $ws->on('close',function($ws,$request){
             if(!empty($staff_id)) {
                 $fd = $redis->getValue('sid'.$staff_id->staff_id);
                 $redis->setValue($staff_id->uuid.'status',OFFLINE);
+                $customerService->updateCustomer(['uuid'=>$staff_id->uuid],['status'=>OFFLINE]);
                 $ws->push($fd,messageBody(CUSTOMER_OFFLINE,null,$cid,null,null));
             } else {
                 //TODO : throw exception
             }
         }
         else if(explode('sid',$leaver)) {
-            echo 'djaiwoma';
-            print_r($leaver);
             $sid = substr($leaver,-1);
             $allHisCustomer = $customerService->getUserList(['staff_id'=>$sid,'is_baned'=>1],'uuid');
             if(!empty($allHisCustomer)) {
