@@ -4,8 +4,10 @@
 class CustomerService
 {
     private $Db;
+    private $Session;
     public function __construct() {
         $this->Db = Mysql::getMysql("mf_customer");
+        $this->Session = Mysql::getMysql("mf_session");
     }
 
     public function getUserList($where,$column) {
@@ -45,28 +47,42 @@ class CustomerService
         $data['id'] = $cid;
 
         $redis->setValue('fd'.$data['fd'],'cid'.$cid,86400);
-
-
         return $data;
     }
 
     private function addDigitInfo($data,$cid) {
-        return 'shit';
+        $insert['customer_id'] = $cid;
+        $insert['visit_start_time'] = date("Y-m-d H:i:s",$data['server']['request_time']);
+        $insert['browser'] = json_encode($data['header'],true);
+        if(!isset($data['get']['wap'])) $insert['operation'] = 3;
+        else $insert['operation'] = 4;
+        if(strpos($data['header']['accept-language'],'zh-CN')) $insert['language'] = '中文';
+        $insert['staff_id'] = $data['get']['sid'];
+        $insert['session_type'] = 2;
+        $this->Session->add($insert);
+        return true;
     }
 
     private function addCustomerInfo($data) {
-        // Find if the customer already exist
+        // Check if the customer already exist
         $exist = $this->Db->where(['uuid'=>$data['get']['me']])->find();
         $exist = object_array($exist);
         if(empty($exist)) {
             $add['uuid'] = $data['get']['me'];
             $add['ip'] = $data['server']['remote_addr'];
-            $add['location'] = 1;
             $add['status'] = ONLINE;
+            $add['login_time'] = date('Y-m-d H:i:s',time());
+            $add['province'] = $data['province'];
+            $add['city'] = $data['city'];
+            $add['temp_name'] = $data['province'] . $data['city'] . '客户';
             $id = $this->Db->add($add);
         } else {
             $update['visit_time'] = $exist['visit_time'] + 1;
             $update['status'] = ONLINE;
+            $update['login_time'] = date('Y-m-d H:i:s',time());
+            $update['province'] = $data['province'];
+            $update['city'] = $data['city'];
+            $update['temp_name'] = $data['province'] . $data['city'] . '客户';
             $this->Db->where(['uuid'=>$data['get']['me']])->update($update);
             $id = $exist['cid'];
         }
@@ -103,7 +119,12 @@ class CustomerService
         return true;
     }
 
-
+    public function locateCustomer($ip) {
+        $ipRegionObject = new Ip2Region('./ip2region.db');
+        $data   = $ipRegionObject->{'btreeSearch'}($ip);
+        $data = explode("|",$data['region']);
+        return $data;
+    }
 
 
 }

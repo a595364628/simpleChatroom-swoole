@@ -9,6 +9,7 @@ include_once "CustomerService.php";
 include_once "StaffService.php";
 include_once "MsgService.php";
 include_once "helper.php";
+include_once "Ip2Region.php";
 
 $ws = new swoole_websocket_server("0.0.0.0",9502);
 
@@ -23,12 +24,17 @@ $ws->on('open',function($ws,$request){
     //Customer's request
     if(isset($request['get']['me']) && !empty($request['get']['me'])) {
         $customerService = new CustomerService();
+        $data = $customerService->locateCustomer($request['server']['remote_addr']);
+        if($data[2] != 0 && $data[2] != '0') $request['province'] = $data[2];
+        else $request['province'] = null;
+        $request['city'] = $data[3];
+        $request['isp'] = $data[4];
         $user = $customerService->addOrUpdateCustomer($request);
         $sid = $request['get']['sid'];
-        //Push customer's detail to assigned customer service
+        //Push customer's detail to assigned customer-service
         $redis = new RedisSet();
         $sfd = $redis->getValue('sid'.$sid);
-        $ws->push($sfd,messageBody(CUSTOMER_JOIN,$user,null,0,$request['fd'],null));
+        $ws->push($sfd,messageBody(CUSTOMER_JOIN,$user,$user['id'],0,$request['fd'],null));
         $ws->push($request['fd'],messageBody(CUSTOMER_JOIN,'ok',$user['id'],0,$request['fd'],null));
     }
     //Staff's request
@@ -42,9 +48,9 @@ $ws->on('open',function($ws,$request){
 });
 
 /*
- * The mechanics of bilateral messaging confirmation is that:
- * We analogize a variable called flag_id to ack in the Tcp protocol, which is the confirmation code in that protocol.
- * Unlike the Tcp protocol's 3 handshakes there are 4/5 handshakes here and they are:
+ * The mechanics of bilateral messaging confirmation is:
+ * We analogize flag_id to ack, which is the confirmation code in the Tcp protocol.
+ * Unlike the Tcp protocol's 3 handshakes process there are 4/5 handshakes here and they are:
  * 1.Client A to server
  * 2.Server to client A
  * 3.Server to Client B
@@ -59,7 +65,6 @@ $ws->on('message',function($ws,$request){
         $msg = json_decode($request->data,true);
 
         if(!empty($msg) && isset($msg['op']) && !empty($msg['op'])) {
-//            var_dump($msg);
             $redis = new RedisSet();
             $staffService = new StaffService();
             $customerService = new CustomerService();
@@ -83,31 +88,45 @@ $ws->on('message',function($ws,$request){
                  *
                  * So it's a preference problem
                  * */
+                if(isset($msg['you'][0])) {
+                    $msg['you'] = $msg['you'][0];
+                    $uuid = $customerService->getUser(['cid'=>$msg['you']],'uuid');
+                    $msg['you'] = $uuid->uuid;
+                }
+
                 $ws->push($redis->getValue($msg['you']),json_encode($msg));
                 //And find the right MF
                 $customer = $customerService->getUser(['uuid'=>$msg['you']],'cid');
                 if(!empty($customer)) $msg['you'] = $customer->cid;
-                else {
-                    echo 'hehe';
-                    //TODO : a log function is acquired
-                }
+//                else {
+//                    echo 'hehe';
+//                    //TODO : a log function is acquired
+//                }
 //                var_dump($msg);
                 $msgService->addMsg($msg,STAFF_MSG_TYPE);
             }
             else if($msg['op'] == CUSTOMER_CHAT_MSG) {
 //                var_dump($redis->getValue('sid'.$msg['you']));
                 //Check whether the User has been banned
-                $isBaned = $customerService->getUser(['uuid'=>$msg['me']],'is_baned');
+                $isBaned = $customerService->getUser(['uuid'=>$msg['me']],'is_baned,cid,temp_name');
                 if($isBaned->is_baned == 1) {
-                    $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
+                    $msg['me'] = $isBaned->cid;
                     $msgService->addMsg($msg,CUSTOMER_MSG_TYPE);
+                    $msg['cid'] = $isBaned->cid;
+                    $msg['name'] = $isBaned->temp_name;
+                    $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
                 }
                 else {
                     $ws->push($request->fd,messageBody(IS_BANED,null,null,null,null));
                 }
             }
             else if($msg['op'] == WRITING_MSG || $msg['op'] == WRITING_MSG_END) {
-                $ws->push($redis->getValue($msg['you']),json_encode($msg));
+                if(isset($msg['you'][0])) {
+                    $msg['you'] = $msg['you'][0];
+                    $uuid = $customerService->getUser(['cid'=>$msg['you']],'uuid');
+                    $msg['you'] = $uuid->uuid;
+                }
+                $ws->push((int)$redis->getValue($msg['you']),json_encode($msg));
             }
             else if($msg['op'] == CUSTOMER_SHAKE) {
                 $customer = $customerService->getUser(['uuid'=>$msg['you']],'cid');
@@ -135,6 +154,10 @@ $ws->on('message',function($ws,$request){
                     $ws->push($redis->getValue($msg['me']),messageBody(HEART_BEAT_PONG,'PONG',null,null,null));
                 }
             }
+            else if($msg['op'] == STAFF_RECV) {
+                $customer = $customerService->getUser(['cid'=>$msg['you'][0]],'uuid');
+                $ws->push($redis->getValue($customer->uuid),json_encode($msg));
+            }
 
         }
     }
@@ -149,7 +172,9 @@ $ws->on('close',function($ws,$request){
     //If the customer closed the session, then push his leaving msg to his customer-service
     if(!empty($leaver)) {
         if(explode('cid',$leaver)) {
-            $cid = substr($leaver,-1);
+            $cid = findNum($leaver);
+            echo 'cid is:';
+            print_r($cid);
             $staff_id = $customerService->getUser(['cid'=>$cid],'staff_id,uuid');
             if(!empty($staff_id)) {
                 $fd = $redis->getValue('sid'.$staff_id->staff_id);
@@ -179,7 +204,7 @@ $ws->on('close',function($ws,$request){
                 }
             }
         }else {
-            echo 'magedan';
+            echo 'hai xing';
         }
 
     }

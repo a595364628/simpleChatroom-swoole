@@ -34,8 +34,15 @@ function object_array($array) {
     return $array;
 }
 
-//TODO: locate customer & staff
-//TODO: add a city table
-function location($ip) {
-    return 1;
+
+function findNum($str=''){
+    $str=trim($str);
+    if(empty($str)){return '';}
+    $result='';
+    for($i=0;$i<strlen($str);$i++){
+        if(is_numeric($str[$i])){
+            $result.=$str[$i];
+        }
+    }
+    return $result;
 }

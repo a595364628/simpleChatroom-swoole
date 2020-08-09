@@ -8,7 +8,8 @@ class msgService
     }
 
     public function addMsg($msg,$type) {
-        $msg['create_time'] = date("Y-m-d m:i:s",time());
+        $msg['create_time'] = date("Y-m-d H:i:s",time());
+        //TODO there's some problems here
         $msg['msg_type'] = $msg['type'];
         $msg['type'] = $type;
         $id = $this->Db->add($msg);
