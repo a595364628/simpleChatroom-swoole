@@ -28,7 +28,7 @@ class Mysql
             $config = require('config.php');
 
             //连接MySQL数据库
-            $pdo = new PDO('mysql:host=' . $config['DB_HOST'] . ';dbname=' . $config['DB_NAME'], $config['DB_USER'], $config['DB_PASS']);
+            $pdo = new PDO('mysql:host=' . $config['DB_HOST'] . 'port=' .$config['DB_PORT']. ';dbname=' . $config['DB_NAME'], $config['DB_USER'], $config['DB_PASS']);
 
             //设置UTF8字符编码
             $pdo->query('SET NAMES UTF8');
