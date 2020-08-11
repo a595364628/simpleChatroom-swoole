@@ -10,6 +10,8 @@ $localConfig = [
     'REDIS_HOST' => '120.77.216.162',
     'REDIS_PORT' => '13583',
     'REDIS_PASS' => 'wyf666',
+
+    'WS_PORT'=>9502,
 ];
 
 $devConfig = [
@@ -22,14 +24,23 @@ $devConfig = [
     'REDIS_HOST' => '120.77.216.162',
     'REDIS_PORT' => '13583',
     'REDIS_PASS' => 'wyf666',
+
+    'WS_PORT'=>59001,
 ];
 
 $proCOnfig = [];
 
-$_ENV = isset($_SERVER['ENV']) ? $_SERVER['ENV'] : 'dev';
+$_ENV = file_get_contents('../../server_params_DO_NOT_DELETE');
+if(empty($_ENV)) $_ENV = 'dev';
 
-if($_ENV == 'local') return $localConfig;
+if(strstr($_ENV,'local')) {
+    return $localConfig;
+}
 
-else if($_ENV == 'dev') return $devConfig;
+else if(strstr($_ENV,'dev')) {
+    return $devConfig;
+}
 
-else if($_ENV == 'pro') return $proCOnfig;
+else if(strstr($_ENV,'pro')) {
+    return $proCOnfig;
+}

@@ -11,7 +11,10 @@ include_once "MsgService.php";
 include_once "helper.php";
 include_once "Ip2Region.php";
 
-$ws = new swoole_websocket_server("0.0.0.0",9502);
+
+
+$config = require('config.php');
+$ws = new swoole_websocket_server("0.0.0.0",$config['WS_PORT']);
 
 
 // open
