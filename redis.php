@@ -16,7 +16,7 @@ class RedisSet {
     {
         $config = require('config.php');
         $this->redis = new Redis();
-        $this->redis->connect( $config['REDIS_HOST'], 6379); // 连接 Redis
+        $this->redis->connect($config['REDIS_HOST'],$config['REDIS_PORT']); // 连接 Redis
         $this->redis->auth($config['REDIS_PASS']); // 密码验证
     }
 
