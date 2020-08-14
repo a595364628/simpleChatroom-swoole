@@ -11,8 +11,6 @@ include_once "MsgService.php";
 include_once "helper.php";
 include_once "Ip2Region.php";
 
-
-
 $config = require('config.php');
 $ws = new swoole_websocket_server("0.0.0.0",$config['WS_PORT']);
 
@@ -89,6 +87,7 @@ $ws->on('message',function($ws,$request){
                  * Using this method is exactly the opposite: U get msg transport efficiency,
                  * but u sacrifice the accuracy. (As the flag_id is a random number being an identifier)
                  *
+                 *
                  * So it's a preference problem
                  * */
                 if(isset($msg['you'][0])) {
@@ -102,10 +101,8 @@ $ws->on('message',function($ws,$request){
                 $customer = $customerService->getUser(['uuid'=>$msg['you']],'cid');
                 if(!empty($customer)) $msg['you'] = $customer->cid;
 //                else {
-//                    echo 'hehe';
 //                    //TODO : a log function is acquired
 //                }
-//                var_dump($msg);
                 $msgService->addMsg($msg,STAFF_MSG_TYPE);
             }
             else if($msg['op'] == CUSTOMER_CHAT_MSG) {
@@ -161,7 +158,6 @@ $ws->on('message',function($ws,$request){
                 $customer = $customerService->getUser(['cid'=>$msg['you'][0]],'uuid');
                 $ws->push($redis->getValue($customer->uuid),json_encode($msg));
             }
-
         }
     }
 
@@ -176,8 +172,6 @@ $ws->on('close',function($ws,$request){
     if(!empty($leaver)) {
         if(explode('cid',$leaver)) {
             $cid = findNum($leaver);
-            echo 'cid is:';
-            print_r($cid);
             $staff_id = $customerService->getUser(['cid'=>$cid],'staff_id,uuid');
             if(!empty($staff_id)) {
                 $fd = $redis->getValue('sid'.$staff_id->staff_id);

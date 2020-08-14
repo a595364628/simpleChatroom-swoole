@@ -21,6 +21,7 @@ function deConsMessage($data) {
     json_decode($data,true);
 }
 
+
 //Convert object to array
 function object_array($array) {
     if(is_object($array)) {
@@ -38,6 +39,7 @@ function object_array($array) {
 function findNum($str=''){
     $str=trim($str);
     if(empty($str)){return '';}
+
     $result='';
     for($i=0;$i<strlen($str);$i++){
         if(is_numeric($str[$i])){
