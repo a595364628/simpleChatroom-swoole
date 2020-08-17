@@ -24,7 +24,6 @@ const STAFF_RECV = 1300;
 const WRITING_MSG = 2000;
 const WRITING_MSG_END = 2001;
 
-
 const ONLINE = 1;
 const BUSY = 2;
 const HIDE = 3;

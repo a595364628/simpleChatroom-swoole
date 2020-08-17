@@ -147,7 +147,7 @@ $ws->on('message',function($ws,$request){
                     }
                 }
             }
-            else if($msg['op'] == HEART_BEAT_PING) {
+	    else if($msg['op'] == HEART_BEAT_PING) {
                 if($msg['args'] == STAFF_CHAT_MSG) {
                     $ws->push($redis->getValue('sid'.$msg['me']),messageBody(HEART_BEAT_PONG,'PONG',null,null,null));
                 } else if($msg['args'] == CUSTOMER_CHAT_MSG) {
