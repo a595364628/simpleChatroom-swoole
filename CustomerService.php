@@ -27,7 +27,6 @@ class CustomerService
     }
 
     public function addOrUpdateCustomer($data) {
-
         //set the customer online
         $data['status'] = 1;
 
@@ -37,14 +36,11 @@ class CustomerService
         */
         $redis = new RedisSet();
         $redis->setValue($data['get']['me'],$data['fd'],86400);
-
         $redis->setValue($data['get']['me'] . 'status', ONLINE,86400);
-
-//        $redis->getValue($data['get']['me']);
-
         $cid = $this->addCustomerInfo($data);
-        $this->addDigitInfo($data,$cid);
+        $sessionId = $this->addDigitInfo($data,$cid);
         $data['id'] = $cid;
+        $data['session_id'] = $sessionId;
 
         $redis->setValue('fd'.$data['fd'],'cid'.$cid,86400);
         return $data;
@@ -59,8 +55,8 @@ class CustomerService
         if(strpos($data['header']['accept-language'],'zh-CN')) $insert['language'] = '中文';
         $insert['staff_id'] = $data['get']['sid'];
         $insert['session_type'] = 2;
-        $this->Session->add($insert);
-        return true;
+        $sessionId = $this->Session->add($insert);
+        return $sessionId;
     }
 
     private function addCustomerInfo($data) {

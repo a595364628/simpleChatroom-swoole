@@ -31,12 +31,16 @@ $ws->on('open',function($ws,$request){
         $request['city'] = $data[3];
         $request['isp'] = $data[4];
         $user = $customerService->addOrUpdateCustomer($request);
+
+        $customerGet['user_id'] = $user['id'];
+        $customerGet['session_id'] = $user['session_id'];
         $sid = $request['get']['sid'];
         //Push customer's detail to assigned customer-service
         $redis = new RedisSet();
         $sfd = $redis->getValue('sid'.$sid);
         $ws->push($sfd,messageBody(CUSTOMER_JOIN,$user,$user['id'],0,$request['fd'],null));
-        $ws->push($request['fd'],messageBody(CUSTOMER_JOIN,'ok',$user['id'],0,$request['fd'],null));
+        $ws->push($request['fd'],messageBody(CUSTOMER_JOIN,'ok',$customerGet,0,$request['fd'],null));
+
     }
     //Staff's request
     else if(isset($request['get']['token']) && !empty($request['get']['token'])) {
