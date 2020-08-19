@@ -151,7 +151,7 @@ $ws->on('message',function($ws,$request){
                     }
                 }
             }
-	    else if($msg['op'] == HEART_BEAT_PING) {
+	        else if($msg['op'] == HEART_BEAT_PING) {
                 if($msg['args'] == STAFF_CHAT_MSG) {
                     $ws->push($redis->getValue('sid'.$msg['me']),messageBody(HEART_BEAT_PONG,'PONG',null,null,null));
                 } else if($msg['args'] == CUSTOMER_CHAT_MSG) {
@@ -161,6 +161,15 @@ $ws->on('message',function($ws,$request){
             else if($msg['op'] == STAFF_RECV) {
                 $customer = $customerService->getUser(['cid'=>$msg['you'][0]],'uuid');
                 $ws->push($redis->getValue($customer->uuid),json_encode($msg));
+            }
+            else if($msg['op'] == FAST_INVITE || $msg['op'] == FORCE_INVITE) {
+                $uuid = $customerService->getUser(['cid'=>$msg['you']],'uuid');
+                if(!empty($uuid)) {
+                    $ws->push($redis->getValue($uuid->uuid),json_encode($msg));
+                } else {
+                    //TODO log
+                    //log('can't find user id of ' . $msg['you']);
+                }
             }
         }
     }
