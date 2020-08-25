@@ -30,17 +30,18 @@ $ws->on('open',function($ws,$request){
         else $request['province'] = null;
         $request['city'] = $data[3];
         $request['isp'] = $data[4];
-        $user = $customerService->addOrUpdateCustomer($request);
 
+        $user = $customerService->addOrUpdateCustomer($request);
         $customerGet['user_id'] = $user['id'];
         $customerGet['session_id'] = $user['session_id'];
         $sid = $request['get']['sid'];
+        $customerService->incStaffActionNum($sid,'interviewing_customer_num');
+
         //Push customer's detail to assigned customer-service
         $redis = new RedisSet();
         $sfd = $redis->getValue('sid'.$sid);
         $ws->push($sfd,messageBody(CUSTOMER_JOIN,$user,$user['id'],0,$request['fd'],null));
         $ws->push($request['fd'],messageBody(CUSTOMER_JOIN,'ok',$customerGet,0,$request['fd'],null));
-
     }
     //Staff's request
     else if(isset($request['get']['token']) && !empty($request['get']['token'])) {
@@ -118,6 +119,7 @@ $ws->on('message',function($ws,$request){
                     $msgService->addMsg($msg,CUSTOMER_MSG_TYPE);
                     $msg['cid'] = $isBaned->cid;
                     $msg['name'] = $isBaned->temp_name;
+                    $customerService->incStaffActionNum($msg['you'],$msg['you'] . 'in_conversation_msg_num');
                     $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
                 }
                 else {
@@ -165,10 +167,23 @@ $ws->on('message',function($ws,$request){
             else if($msg['op'] == FAST_INVITE || $msg['op'] == FORCE_INVITE) {
                 $uuid = $customerService->getUser(['cid'=>$msg['you']],'uuid');
                 if(!empty($uuid)) {
-                    $ws->push($redis->getValue($uuid->uuid),json_encode($msg));
+                    $ifThisCustomerLocked = $customerService->getCustomerChatLock($msg['you']);
+                    if($ifThisCustomerLocked)
+                        $ws->push($redis->getValue('sid'.$msg['me']),messageBody(CUSTOMER_LOCKED,null,null,$msg['you'],$msg['me']));
+                    else {
+                        $customerService->setCustomerChatLock($msg['you'],$msg['me']);
+                        $ws->push($redis->getValue($uuid->uuid),json_encode($msg));
+                    }
                 } else {
                     //TODO log
                     //log('can't find user id of ' . $msg['you']);
+                }
+            } else if($msg['op'] == ACCEPT_INVITE || $msg['op'] == DECLINE_INVITE) {
+                $user = $customerService->getUser(['uuid'=>$msg['me']],'cid');
+                if(!empty($user)) {
+                    $msg['me'] = $user->cid;
+                    if($msg['op'] == DECLINE_INVITE) $customerService->setCustomerChatLock($user->cid,$msg['you'],false);
+                    $ws->push($redis->getValue('sid'.$msg['you']),json_encode($msg));
                 }
             }
         }
@@ -216,11 +231,9 @@ $ws->on('close',function($ws,$request){
         }else {
             echo 'hai xing';
         }
-
     }
     else {
         //TODO: throw exception
     }
-
 });
 $ws->start();

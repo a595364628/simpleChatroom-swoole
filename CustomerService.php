@@ -122,5 +122,44 @@ class CustomerService
         return $data;
     }
 
+    // The first chat with a customer will be locked, other customer service(staff) cannot invite this customer
+    // param: action : true(lock the customer) false(unlock the customer)
+    //TODO 这里的redis连接是有问题的，后期要改成swoole提供的redis连接池，php语言对连接池的支持不是很好，具体参看链接 https://www.jianshu.com/p/6085c6c16df4
+    public function setCustomerChatLock($cid,$sid,$action = true,$time = 3600) {
+        $redis = new RedisSet();
+        if($action == true) $redis->setValue($cid . 'lockStaff',$sid,$time);
+        else $redis->setValue($cid . 'lockStaff',false);
+        return true;
+    }
+
+    public function getCustomerChatLock($cid) {
+        $redis = new RedisSet();
+        return $redis->getValue($cid . 'lockStaff');
+    }
+
+    // These action include inviting customers(num), msg(num), interviewing customers(num)
+    // leaving customers(num), collect customers(num)
+    // U can see all these action or num in chat page navigation bar(left side)
+    public function getStaffAllActionNum($sid,$field = null,$type = 'all') {
+        $redis = new RedisSet();
+        if($type == 'all') {
+            $data['interviewing_customer_num'] = $redis->getValue('interviewing_customer_num') ? $redis->getValue('interviewing_customer_num') : 0;
+//            $data['inviting_customer_num'] = $redis->getValue($sid . 'inviting_customer_num') ? $redis->getValue($sid . 'inviting_customer_num') : 0;
+            $data['in_conversation_msg_num'] = $redis->getValue($sid . 'in_conversation_msg_num') ? $redis->getValue($sid . 'in_conversation_msg_num') : 0;
+//            $data['offline_customer_num'] = $redis->getValue('offline_customer_num') ? $redis->getValue('offline_customer_num') : 0;
+//            $data['collect_customer_num'] = $redis->getValue($sid . 'collect_customer_num') ? $redis->getValue($sid . 'collect_customer_num') : 0;
+            return $data;
+        } else {
+            $data = $redis->getValue($field) ? $redis->getValue($field) : 0;
+            return $data;
+        }
+    }
+
+    public function incStaffActionNum($sid,$field) {
+        $redis = new RedisSet();
+        $data = $this->getStaffAllActionNum($sid,$field,'single');
+        return $redis->setValue($field,$data + 1);
+    }
+
 
 }
